@@ -1,12 +1,20 @@
 import os
+import sys
 import cv2
 import torch
 import argparse
 from torch.nn import functional as F
 import warnings
 import numpy as np
+
+INTERPOLATOR_ROOT = os.path.dirname(__file__)  # INTERPOLATOR_ROOT root directory
+__location__ = os.path.realpath(
+    os.path.join(os.getcwd(), os.path.dirname(__file__)))
+if str(INTERPOLATOR_ROOT) not in sys.path:
+    sys.path.append(str(INTERPOLATOR_ROOT))  # add INTERPOLATOR_ROOT to PATH
+
 class InterpolatorInterface:
-    def __init__(self, model_pth="RIFEv4.22/train_log"):
+    def __init__(self, model_pth=os.path.join(INTERPOLATOR_ROOT, "train_log") ): # os.path.join(INTERPOLATOR_ROOT, "RIFEv4.22", "train_log")):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         torch.set_grad_enabled(False)
         if torch.cuda.is_available():
@@ -36,6 +44,7 @@ class InterpolatorInterface:
             self.model.load_model(model_pth, -1)
             print("Loaded ArXiv-RIFE model")
         self.model.eval()
+        # self.model.to()
         self.model.device()
     def generate(
         self,
@@ -112,20 +121,21 @@ class InterpolatorInterface:
                         indices.append(int(name[len(prefix):]))
                 return max(indices, default=-1) + 1
             
-            next_index = get_next_index('output', 'img')
 
-            if not os.path.exists('output'):
-                os.mkdir('output')
+            if not os.path.exists(outputdir):
+                os.mkdir(outputdir)
 
+            next_index = get_next_index(outputdir, 'img')
+            
             output_list = []
 
             for i in range(len(img_list)):
                 if imgs[0].endswith('.exr') and imgs[1].endswith('.exr'):
-                    new_img_pth = 'output/img{}.exr'.format(next_index+i)
+                    new_img_pth = os.path.join(outputdir, 'img{}.exr'.format(next_index+i))
                     cv2.imwrite(new_img_pth, (img_list[i][0]).cpu().numpy().transpose(1, 2, 0)[:h, :w], [cv2.IMWRITE_EXR_TYPE, cv2.IMWRITE_EXR_TYPE_HALF])
                     output_list.append(new_img_pth)
                 else:
-                    new_img_pth = 'output/img{}.png'.format(next_index+i)
+                    new_img_pth = os.path.join(outputdir, 'img{}.png'.format(next_index+i))
                     cv2.imwrite(new_img_pth, (img_list[i][0] * 255).byte().cpu().numpy().transpose(1, 2, 0)[:h, :w])
                     output_list.append(new_img_pth)
             return output_list
